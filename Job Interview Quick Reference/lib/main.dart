@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:sample/MainPageWidget.dart';
 //import 'package:sample/HomePage.dart';
-import '/list/CouponListView.dart';
+//import '/list/CouponListView.dart';
 //import 'FirstPage.dart';
 //import 'SecondPage.dart';
 //import 'ThirdPage.dart';
 //import 'package:sample/list/CouponListView.dart';
 import 'MainPageWidget.dart';
+import 'AnswerPage.dart';
 
 void main() {
   runApp(const MyApp());

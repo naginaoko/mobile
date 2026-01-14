@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'FirstPage.dart';
+import 'AnswerPage.dart';
 
-class AnswerPage extends StatelessWidget {
+class Questionpage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -15,7 +15,7 @@ class AnswerPage extends StatelessWidget {
               context,
               MaterialPageRoute(
                 // （2） 実際に表示するページ(ウィジェット)を指定する
-                builder: (context) => FirstPage(),
+                builder: (context) => AnswerPage(),
               ),
             );
           },
