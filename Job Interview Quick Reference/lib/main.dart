@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:sample/MainPageWidget.dart';
+//import 'package:sample/MainPageWidget.dart';
 //import 'package:sample/HomePage.dart';
 //import '/list/CouponListView.dart';
 //import 'FirstPage.dart';
 //import 'SecondPage.dart';
 //import 'ThirdPage.dart';
 //import 'package:sample/list/CouponListView.dart';
-import 'MainPageWidget.dart';
+//import 'MainPageWidget.dart';
 import 'QuestionPage.dart';
 import 'AnswerPage.dart';
 
@@ -49,6 +49,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+/*
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
@@ -94,3 +95,4 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
+*/
