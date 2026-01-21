@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'QuestionPage.dart';
 
 class AnswerPage extends StatelessWidget {
   const AnswerPage({super.key});
@@ -80,7 +81,7 @@ class AnswerPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              "貴社の「ユーザーの課題を技術で解決する」という理念に深く共感いたしました。特に、〇〇というサービスにおいて、ユーザー視点を徹底した改善を繰り返している点に魅力を感じています。私のこれまでの経験を活かし、チームの一員として貢献したいと考えています。",
+              "御社の「ユーザーの課題を技術で解決する」という理念に深く共感いたしました。特に、〇〇というサービスにおいて、ユーザー視点を徹底した改善を繰り返している点に魅力を感じています。私のこれまでの経験を活かし、チームの一員として貢献したいと考えています。",
               style: TextStyle(
                 fontSize: 17,
                 height: 1.8,

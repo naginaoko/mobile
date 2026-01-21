@@ -59,7 +59,7 @@ class Questionpage extends StatelessWidget {
                 _buildQuestionCard(
                   context,
                   category: "自己PR",
-                  question: "これまでの失敗経験を教えてください。",
+                  question: "3分以内で自己PRしてください。",
                   date: "2023/10/22",
                 ),
                 _buildQuestionCard(
