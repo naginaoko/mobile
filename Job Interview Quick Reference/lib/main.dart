@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 //import 'MainPageWidget.dart';
 import 'QuestionPage.dart';
 import 'AnswerPage.dart';
+import 'QuestionModel.dart';
 
 void main() {
   runApp(const MyApp());
