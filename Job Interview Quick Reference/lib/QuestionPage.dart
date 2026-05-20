@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // データを読み取るために必要
 import 'AnswerPage.dart';
+import 'InputPage.dart'; // 入力画面を開くために必要
+import 'QuestionModel.dart'; // データの型を使うために必要
 
 class Questionpage extends StatelessWidget {
   const Questionpage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // 【最重要】Providerから最新のデータ一覧を受け取る
+    final provider = Provider.of<QuestionProvider>(context);
+    final allItems = provider.items;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F9),
-
       appBar: AppBar(
         title: const Text(
           "面接クイックリファレンス",
@@ -26,9 +32,9 @@ class Questionpage extends StatelessWidget {
           ),
         ],
       ),
-
       body: Column(
         children: [
+          // カテゴリータブ部分（見た目はそのまま）
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -46,42 +52,36 @@ class Questionpage extends StatelessWidget {
             ),
           ),
 
+          // 質問リスト部分
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildQuestionCard(
-                  context,
-                  category: "志望動機",
-                  question: "弊社を志望する理由は何ですか？",
-                  date: "2023/10/24",
-                ),
-                _buildQuestionCard(
-                  context,
-                  category: "自己PR",
-                  question: "3分以内で自己PRしてください。",
-                  date: "2023/10/22",
-                ),
-                _buildQuestionCard(
-                  context,
-                  category: "自己PR",
-                  question: "あなたの最大の強みは何ですか？",
-                  date: "2023/10/20",
-                ),
-              ],
-            ),
+            child: allItems.isEmpty
+                ? const Center(child: Text("質問がありません。右下のボタンから追加してください。"))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: allItems.length, // データの数だけループしてカードを作る
+                    itemBuilder: (context, index) {
+                      final item = allItems[index]; // 1つ分のデータを取り出す
+                      return _buildQuestionCard(context, item);
+                    },
+                  ),
           ),
         ],
       ),
-
+      // 右下の「＋」ボタンを押したら、追加モードで入力画面を開く
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const InputPage()),
+          );
+        },
         backgroundColor: const Color(0xFF1A375D),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
+  // カテゴリータグの部品（見た目はそのまま）
   Widget _buildCategoryTag(String label, {bool isSelected = false}) {
     return Padding(
       padding: const EdgeInsets.only(right: 16),
@@ -106,12 +106,8 @@ class Questionpage extends StatelessWidget {
     );
   }
 
-  Widget _buildQuestionCard(
-    BuildContext context, {
-    required String category,
-    required String question,
-    required String date,
-  }) {
+  // 質問カードの部品（引数を本物のデータ型に変更）
+  Widget _buildQuestionCard(BuildContext context, QuestionItem item) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -119,9 +115,10 @@ class Questionpage extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
+          // 詳細画面へ行くときに、タップされたデータを丸ごと引き渡す！
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => AnswerPage()),
+            MaterialPageRoute(builder: (context) => AnswerPage(item: item)),
           );
         },
         child: Padding(
@@ -142,7 +139,7 @@ class Questionpage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      category,
+                      item.category, // 本物のカテゴリーを表示
                       style: const TextStyle(
                         fontSize: 10,
                         color: Colors.blue,
@@ -151,14 +148,14 @@ class Questionpage extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    date,
+                    item.date, // 本物の日付を表示
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               Text(
-                question,
+                item.question, // 本物の質問文を表示
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

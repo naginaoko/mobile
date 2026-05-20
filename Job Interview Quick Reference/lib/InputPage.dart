@@ -19,7 +19,7 @@ class _InputPageState extends State<InputPage> {
 
   @override
   void initState() {
-    super.override(context);
+    super.initState();
     // もし「編集モード」で画面が開かれたら、最初から元の文字を入力欄に入れておく
     if (widget.editingItem != null) {
       _questionController.text = widget.editingItem!.question;

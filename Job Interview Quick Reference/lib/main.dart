@@ -1,26 +1,21 @@
 import 'package:flutter/material.dart';
-//import 'package:sample/MainPageWidget.dart';
-//import 'package:sample/HomePage.dart';
-//import '/list/CouponListView.dart';
-//import 'FirstPage.dart';
-//import 'SecondPage.dart';
-//import 'ThirdPage.dart';
-//import 'package:sample/list/CouponListView.dart';
-//import 'MainPageWidget.dart';
+import 'package:provider/provider.dart'; // 1. これを追加（Providerの仕組みを使うため）
 import 'QuestionPage.dart';
 import 'AnswerPage.dart';
 import 'QuestionModel.dart';
 
 void main() {
-  runApp(const MyApp());
-  //runApp(HomePage());
+  // 2. runAppの中身を「ChangeNotifierProvider」で包むように修正します
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => QuestionProvider(), // データ管理クラスを起動
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  //ListViewのためのダミーメソッド
-  //void dummyDetail() {}
 
   @override
   Widget build(BuildContext context) {
@@ -28,72 +23,11 @@ class MyApp extends StatelessWidget {
       title: '面接クイックリファレンス',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        // お好みでテーマカラーをネイビー系（0xFF1A375D）に合わせると統一感が出ます
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A375D)),
+        useMaterial3: true,
       ),
-      //home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      //home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      home: Questionpage(),
-
-      /*initialRoute: '/home',
-      routes: {
-        '/home': (context) => Questionpage(),
-        '/first': (content) => AnswerPage(),
-        '/second': (content) => Secondpage(),
-        '/third': (content) => Thirdpage(),
-      },*/
-
-      //ListViewの導入テスト
-      //home: CouponListView(dummyDetail),
-      //
-      //home: MainPageWidget(),
+      home: const Questionpage(), // 起動時に一覧画面を表示
     );
   }
 }
-
-/*
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-}
-*/
