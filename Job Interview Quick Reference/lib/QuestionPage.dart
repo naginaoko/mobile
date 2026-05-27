@@ -118,7 +118,9 @@ class Questionpage extends StatelessWidget {
           // 詳細画面へ行くときに、タップされたデータを丸ごと引き渡す！
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => AnswerPage(item: item)),
+            MaterialPageRoute(
+              builder: (context) => AnswerPage(itemId: item.id),
+            ),
           );
         },
         child: Padding(

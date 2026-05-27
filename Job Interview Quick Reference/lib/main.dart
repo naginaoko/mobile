@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // 1. これを追加（Providerの仕組みを使うため）
+import 'package:provider/provider.dart';
 import 'QuestionPage.dart';
 import 'AnswerPage.dart';
 import 'QuestionModel.dart';
 
 void main() {
-  // 2. runAppの中身を「ChangeNotifierProvider」で包むように修正します
   runApp(
     ChangeNotifierProvider(
       create: (context) => QuestionProvider(), // データ管理クラスを起動
@@ -23,7 +22,7 @@ class MyApp extends StatelessWidget {
       title: '面接クイックリファレンス',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // お好みでテーマカラーをネイビー系（0xFF1A375D）に合わせると統一感が出ます
+        // ネイビー系（0xFF1A375D）
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A375D)),
         useMaterial3: true,
       ),

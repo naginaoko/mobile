@@ -4,15 +4,37 @@ import 'InputPage.dart';
 import 'QuestionModel.dart';
 
 class AnswerPage extends StatelessWidget {
-  final QuestionItem item; // 前の画面から渡されたデータを受け取る変数
+  // 1. 変更点：これまではデータ丸ごと（item）を受け取っていましたが、
+  // これからはデータを特定するための「id」だけを受け取るようにします。
+  final String itemId;
 
-  // コンストラクタでデータを受け取ることを必須（required）にする
-  const AnswerPage({super.key, required this.item});
+  const AnswerPage({super.key, required this.itemId});
 
   @override
   Widget build(BuildContext context) {
-    // 削除機能を使うためにプロバイダーを用意
-    final provider = Provider.of<QuestionProvider>(context, listen: false);
+    // 2. 【超重要】Providerから最新のデータ一覧をリアルタイムに監視します
+    final provider = Provider.of<QuestionProvider>(context);
+
+    // 3. 全データの中から、前の画面から渡された「id」と一致する最新の1件を探し出します
+    // もし削除された直後などで見つからない場合は、仮の空データを入れます
+    final item = provider.items.firstWhere(
+      (element) => element.id == itemId,
+      orElse: () => QuestionItem(
+        id: '',
+        category: '',
+        question: '',
+        answer: '',
+        date: '',
+      ),
+    );
+
+    // 安全対策：もしデータが空（削除された後）なら、何も描画せず一瞬で画面を閉じます
+    if (item.id.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pop(context);
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -28,7 +50,7 @@ class AnswerPage extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1A375D)),
         actions: [
-          // 【編集ボタン】現在のデータを引き渡して入力画面を「編集モード」で開く
+          // 【編集ボタン】
           IconButton(
             onPressed: () {
               Navigator.push(
@@ -40,10 +62,9 @@ class AnswerPage extends StatelessWidget {
             },
             icon: const Icon(Icons.edit_outlined),
           ),
-          // 【削除ボタン】プロバイダーの削除命令を呼び出す
+          // 【削除ボタン】
           IconButton(
             onPressed: () {
-              // 確認ダイアログを表示する
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
@@ -56,9 +77,12 @@ class AnswerPage extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: () {
-                        provider.deleteQuestion(item.id); // データを削除
+                        // listen: false をつけて、ボタンを押した瞬間にだけ削除を実行します
+                        Provider.of<QuestionProvider>(
+                          context,
+                          listen: false,
+                        ).deleteQuestion(item.id);
                         Navigator.pop(ctx); // ダイアログを閉じる
-                        Navigator.pop(context); // 詳細画面も閉じて一覧に戻る
                       },
                       child: const Text(
                         "削除",
@@ -85,7 +109,7 @@ class AnswerPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                item.category, // 受け取ったカテゴリーを表示
+                item.category,
                 style: const TextStyle(
                   color: Colors.blue,
                   fontWeight: FontWeight.bold,
@@ -104,7 +128,7 @@ class AnswerPage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              item.question, // 受け取った質問を表示
+              item.question,
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -126,7 +150,7 @@ class AnswerPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              item.answer, // 受け取った回答を表示
+              item.answer,
               style: const TextStyle(
                 fontSize: 17,
                 height: 1.8,
