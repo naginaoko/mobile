@@ -4,19 +4,18 @@ import 'InputPage.dart';
 import 'QuestionModel.dart';
 
 class AnswerPage extends StatelessWidget {
-  // 1. 変更点：これまではデータ丸ごと（item）を受け取っていましたが、
-  // これからはデータを特定するための「id」だけを受け取るようにします。
+  // データを特定するためのidを受け取る
   final String itemId;
 
   const AnswerPage({super.key, required this.itemId});
 
   @override
   Widget build(BuildContext context) {
-    // 2. 【超重要】Providerから最新のデータ一覧をリアルタイムに監視します
+    // Providerから最新のデータ一覧をリアルタイムに監視
     final provider = Provider.of<QuestionProvider>(context);
 
-    // 3. 全データの中から、前の画面から渡された「id」と一致する最新の1件を探し出します
-    // もし削除された直後などで見つからない場合は、仮の空データを入れます
+    // 全データの中から、前の画面から渡されたidと一致する最新の1件を探し出す
+    // もし削除された直後などで見つからない場合は、仮の空データを入れる
     final item = provider.items.firstWhere(
       (element) => element.id == itemId,
       orElse: () => QuestionItem(
@@ -28,7 +27,7 @@ class AnswerPage extends StatelessWidget {
       ),
     );
 
-    // 安全対策：もしデータが空（削除された後）なら、何も描画せず一瞬で画面を閉じます
+    // もしデータが空（削除された後）なら、何も描画せず一瞬で画面を閉じる
     if (item.id.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pop(context);
@@ -77,7 +76,7 @@ class AnswerPage extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: () {
-                        // listen: false をつけて、ボタンを押した瞬間にだけ削除を実行します
+                        // listen: false をつけて、ボタンを押した瞬間にだけ削除を実行
                         Provider.of<QuestionProvider>(
                           context,
                           listen: false,

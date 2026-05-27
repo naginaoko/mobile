@@ -9,7 +9,7 @@ class Questionpage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 【最重要】Providerから最新のデータ一覧を受け取る
+    // Providerから最新のデータ一覧を受け取る
     final provider = Provider.of<QuestionProvider>(context);
     final allItems = provider.items;
 
@@ -34,7 +34,7 @@ class Questionpage extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // カテゴリータブ部分（見た目はそのまま）
+          // カテゴリータブ部分
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -115,7 +115,7 @@ class Questionpage extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // 詳細画面へ行くときに、タップされたデータを丸ごと引き渡す！
+          // 詳細画面へ行くときに、タップされたデータを丸ごと引き渡す
           Navigator.push(
             context,
             MaterialPageRoute(
