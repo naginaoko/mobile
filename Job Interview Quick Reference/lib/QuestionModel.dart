@@ -48,6 +48,27 @@ class QuestionProvider extends ChangeNotifier {
 
   List<QuestionItem> get items => _items;
 
+  // 現在選択されているカテゴリーを保存する変数（最初は「すべて」）
+  String _selectedCategory = 'すべて';
+
+  // 外部（画面側）から現在のカテゴリーを読み取るためのゲッター
+  String get selectedCategory => _selectedCategory;
+
+  // タブが切り替わったときに、選択中のカテゴリーを更新する関数
+  void setCategory(String category) {
+    _selectedCategory = category;
+    notifyListeners(); // 画面に「切り替わったから再描画してね！」と通知
+  }
+
+  // 現在選択されているカテゴリーだけで絞り込んだ質問リストを返すゲッター
+  List<QuestionItem> get filteredItems {
+    if (_selectedCategory == 'すべて') {
+      return _items; // 「すべて」なら、選別せずに全件返す
+    }
+    // 選択中のカテゴリーと一致するものだけを抽出して返す
+    return _items.where((item) => item.category == _selectedCategory).toList();
+  }
+
   // 保存するときに使うスマホ内部の「引き出しの名前（キー）」
   static const String _storageKey = 'saved_questions';
 

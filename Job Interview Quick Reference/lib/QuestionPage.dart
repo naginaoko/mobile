@@ -9,9 +9,11 @@ class Questionpage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Providerから最新のデータ一覧を受け取る
+    // Providerからデータ一覧と、選択中のカテゴリー情報を受け取る
     final provider = Provider.of<QuestionProvider>(context);
-    final allItems = provider.items;
+
+    // 全件(allItems)ではなく、新しく作った「絞り込み済みのリスト」を使うように変更
+    final displayItems = provider.filteredItems;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F9),
@@ -43,10 +45,27 @@ class Questionpage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  _buildCategoryTag("すべて", isSelected: true),
-                  _buildCategoryTag("自己PR"),
-                  _buildCategoryTag("志望動機"),
-                  _buildCategoryTag("逆質問"),
+                  // どのタグが選ばれているかを「provider.selectedCategory」と比較して判定
+                  _buildCategoryTag(
+                    context,
+                    "すべて",
+                    isSelected: provider.selectedCategory == "すべて",
+                  ),
+                  _buildCategoryTag(
+                    context,
+                    "自己PR",
+                    isSelected: provider.selectedCategory == "自己PR",
+                  ),
+                  _buildCategoryTag(
+                    context,
+                    "志望動機",
+                    isSelected: provider.selectedCategory == "志望動機",
+                  ),
+                  _buildCategoryTag(
+                    context,
+                    "逆質問",
+                    isSelected: provider.selectedCategory == "逆質問",
+                  ),
                 ],
               ),
             ),
@@ -54,13 +73,15 @@ class Questionpage extends StatelessWidget {
 
           // 質問リスト部分
           Expanded(
-            child: allItems.isEmpty
-                ? const Center(child: Text("質問がありません。右下のボタンから追加してください。"))
+            child:
+                displayItems
+                    .isEmpty // 絞り込んだ結果、空っぽの場合の処理
+                ? const Center(child: Text("このカテゴリーの質問はまだありません。"))
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: allItems.length, // データの数だけループしてカードを作る
+                    itemCount: displayItems.length, // 絞り込まれたデータの数だけループ
                     itemBuilder: (context, index) {
-                      final item = allItems[index]; // 1つ分のデータを取り出す
+                      final item = displayItems[index]; // 1つ分のデータを取り出す
                       return _buildQuestionCard(context, item);
                     },
                   ),
@@ -81,32 +102,49 @@ class Questionpage extends StatelessWidget {
     );
   }
 
-  // カテゴリータグの部品（見た目はそのまま）
-  Widget _buildCategoryTag(String label, {bool isSelected = false}) {
+  // カテゴリータグの部品（タップできるように GestureDetector で包み、context を追加）
+  Widget _buildCategoryTag(
+    BuildContext context,
+    String label, {
+    bool isSelected = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(right: 16),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? Colors.blue : Colors.grey,
-            ),
+      child: GestureDetector(
+        // タップされたら、Providerに「このカテゴリーが選ばれたよ！」と伝えます
+        onTap: () {
+          Provider.of<QuestionProvider>(
+            context,
+            listen: false,
+          ).setCategory(label);
+        },
+        child: Container(
+          // タップの反応範囲を広げるための設定
+          color: Colors.transparent,
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.blue : Colors.grey,
+                ),
+              ),
+              if (isSelected)
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  height: 2,
+                  width: 20,
+                  color: Colors.blue,
+                ),
+            ],
           ),
-          if (isSelected)
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              height: 2,
-              width: 20,
-              color: Colors.blue,
-            ),
-        ],
+        ),
       ),
     );
   }
 
-  // 質問カードの部品（引数を本物のデータ型に変更）
+  // 質問カードの部品
   Widget _buildQuestionCard(BuildContext context, QuestionItem item) {
     return Card(
       elevation: 0,
@@ -115,7 +153,6 @@ class Questionpage extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // 詳細画面へ行くときに、タップされたデータを丸ごと引き渡す
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -141,7 +178,7 @@ class Questionpage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      item.category, // 本物のカテゴリーを表示
+                      item.category,
                       style: const TextStyle(
                         fontSize: 10,
                         color: Colors.blue,
@@ -150,14 +187,14 @@ class Questionpage extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    item.date, // 本物の日付を表示
+                    item.date,
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               Text(
-                item.question, // 本物の質問文を表示
+                item.question,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
