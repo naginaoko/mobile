@@ -37,6 +37,28 @@ class Questionpage extends StatelessWidget {
       body: Column(
         children: [
           // カテゴリータブ部分
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              onChanged: (value) {
+                // 文字が入力されるたびに、リアルタイムでProviderにキーワードを伝える
+                Provider.of<QuestionProvider>(
+                  context,
+                  listen: false,
+                ).setSearchQuery(value);
+              },
+              decoration: InputDecoration(
+                hintText: "質問を検索...",
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF1A375D)),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 8),

@@ -48,11 +48,12 @@ class QuestionProvider extends ChangeNotifier {
 
   List<QuestionItem> get items => _items;
 
-  // 現在選択されているカテゴリーを保存する変数（最初は「すべて」）
+  // ーーー 🔍 【ここから追加】検索用の変数 ーーー
   String _selectedCategory = 'すべて';
+  String _searchQuery = ''; // 検索キーワードを保存する変数
 
-  // 外部（画面側）から現在のカテゴリーを読み取るためのゲッター
   String get selectedCategory => _selectedCategory;
+  String get searchQuery => _searchQuery; // 外部からキーワードを読み取るゲッター
 
   // タブが切り替わったときに、選択中のカテゴリーを更新する関数
   void setCategory(String category) {
@@ -60,14 +61,36 @@ class QuestionProvider extends ChangeNotifier {
     notifyListeners(); // 画面に「切り替わったから再描画してね！」と通知
   }
 
-  // 現在選択されているカテゴリーだけで絞り込んだ質問リストを返すゲッター
+  // ★【検索対応に書き換え】カテゴリーと検索キーワードの2重フィルターをかける
   List<QuestionItem> get filteredItems {
-    if (_selectedCategory == 'すべて') {
-      return _items; // 「すべて」なら、選別せずに全件返す
+    // 1. まずはカテゴリーで絞り込む
+    List<QuestionItem> list = _items;
+    if (_selectedCategory != 'すべて') {
+      list = _items
+          .where((item) => item.category == _selectedCategory)
+          .toList();
     }
-    // 選択中のカテゴリーと一致するものだけを抽出して返す
-    return _items.where((item) => item.category == _selectedCategory).toList();
+
+    // 2. もし検索キーワードが入っていれば、さらにその文字が含まれる質問だけを残す
+    if (_searchQuery.isNotEmpty) {
+      list = list
+          .where(
+            (item) => item.question.toLowerCase().contains(
+              _searchQuery.toLowerCase(),
+            ),
+          )
+          .toList();
+    }
+
+    return list;
   }
+
+  // 検索キーワードが入力されたときに呼び出す関数
+  void setSearchQuery(String query) {
+    _searchQuery = query;
+    notifyListeners(); // 文字が変わるたびに画面をリアルタイムに再描画
+  }
+  // ーーー 🔍 【ここまで追加】 ーーー
 
   // 保存するときに使うスマホ内部の「引き出しの名前（キー）」
   static const String _storageKey = 'saved_questions';
