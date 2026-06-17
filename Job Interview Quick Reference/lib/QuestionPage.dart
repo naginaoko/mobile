@@ -59,6 +59,7 @@ class Questionpage extends StatelessWidget {
               ),
             ),
           ),
+          // カテゴリータブ部分
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -67,27 +68,21 @@ class Questionpage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  // どのタグが選ばれているかを「provider.selectedCategory」と比較して判定
+                  // ① まずは固定で「すべて」のタグを置く
                   _buildCategoryTag(
                     context,
                     "すべて",
                     isSelected: provider.selectedCategory == "すべて",
                   ),
-                  _buildCategoryTag(
-                    context,
-                    "自己PR",
-                    isSelected: provider.selectedCategory == "自己PR",
-                  ),
-                  _buildCategoryTag(
-                    context,
-                    "志望動機",
-                    isSelected: provider.selectedCategory == "志望動機",
-                  ),
-                  _buildCategoryTag(
-                    context,
-                    "逆質問",
-                    isSelected: provider.selectedCategory == "逆質問",
-                  ),
+
+                  // ② 【ここを変更！】Providerにあるカテゴリーリストから自動で並べる
+                  ...provider.categories.map((cat) {
+                    return _buildCategoryTag(
+                      context,
+                      cat,
+                      isSelected: provider.selectedCategory == cat,
+                    );
+                  }).toList(),
                 ],
               ),
             ),

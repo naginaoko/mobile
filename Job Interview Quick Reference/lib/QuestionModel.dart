@@ -1,6 +1,6 @@
-import 'dart:convert'; // 1. JSONの変換（文字とリストの行き来）に必要です
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 2. 保存ツール
+import 'package:shared_preferences/shared_preferences.dart';
 
 // 質問と回答のデータを表すクラス
 class QuestionItem {
@@ -18,7 +18,6 @@ class QuestionItem {
     required this.date,
   });
 
-  // データを「保存用」のマップ型（連想配列）に変換する関数
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -29,7 +28,6 @@ class QuestionItem {
     };
   }
 
-  // 保存されていたマップ型から、元の「QuestionItem型」に復元する関数
   factory QuestionItem.fromMap(Map<String, dynamic> map) {
     return QuestionItem(
       id: map['id'],
@@ -43,35 +41,47 @@ class QuestionItem {
 
 // データの「追加・編集・削除・保存」を一括管理するクラス
 class QuestionProvider extends ChangeNotifier {
-  // 最初は空っぽのリストにしておき、起動時にスマホから読み込み
   List<QuestionItem> _items = [];
-
   List<QuestionItem> get items => _items;
 
-  // ーーー 🔍 【ここから追加】検索用の変数 ーーー
+  // ーーー ★【ここを拡張】自由に追加できるカテゴリーリスト ーーー
+  // 最初は基本の3つを用意（「すべて」はシステム側で扱うためここには含めません）
+  List<String> _categories = ["自己PR", "志望動機", "逆質問"];
+  List<String> get categories => _categories; // 画面から読み取るためのゲッター
+
   String _selectedCategory = 'すべて';
-  String _searchQuery = ''; // 検索キーワードを保存する変数
+  String _searchQuery = '';
 
   String get selectedCategory => _selectedCategory;
-  String get searchQuery => _searchQuery; // 外部からキーワードを読み取るゲッター
+  String get searchQuery => _searchQuery;
 
-  // タブが切り替わったときに、選択中のカテゴリーを更新する関数
-  void setCategory(String category) {
-    _selectedCategory = category;
-    notifyListeners(); // 画面に「切り替わったから再描画してね！」と通知
+  // ★新しいカテゴリーをユーザーが追加する関数
+  Future<void> addCategory(String newCategory) async {
+    final trimmed = newCategory.trim();
+    if (trimmed.isNotEmpty && !_categories.contains(trimmed)) {
+      _categories.add(trimmed);
+      notifyListeners();
+      await saveCategories(); // カテゴリーリストもスマホに保存する
+    }
   }
 
-  // ★【検索対応に書き換え】カテゴリーと検索キーワードの2重フィルターをかける
+  void setCategory(String category) {
+    _selectedCategory = category;
+    notifyListeners();
+  }
+
+  void setSearchQuery(String query) {
+    _searchQuery = query;
+    notifyListeners();
+  }
+
   List<QuestionItem> get filteredItems {
-    // 1. まずはカテゴリーで絞り込む
     List<QuestionItem> list = _items;
     if (_selectedCategory != 'すべて') {
       list = _items
           .where((item) => item.category == _selectedCategory)
           .toList();
     }
-
-    // 2. もし検索キーワードが入っていれば、さらにその文字が含まれる質問だけを残す
     if (_searchQuery.isNotEmpty) {
       list = list
           .where(
@@ -81,48 +91,48 @@ class QuestionProvider extends ChangeNotifier {
           )
           .toList();
     }
-
     return list;
   }
 
-  // 検索キーワードが入力されたときに呼び出す関数
-  void setSearchQuery(String query) {
-    _searchQuery = query;
-    notifyListeners(); // 文字が変わるたびに画面をリアルタイムに再描画
-  }
-  // ーーー 🔍 【ここまで追加】 ーーー
-
-  // 保存するときに使うスマホ内部の「引き出しの名前（キー）」
+  // ストレージ用のキー
   static const String _storageKey = 'saved_questions';
+  static const String _categoryKey = 'saved_categories'; // ★カテゴリー保存用のキー
 
-  // コンストラクタ：このProviderが立ち上がった瞬間に、自動でスマホからデータを読み込み
   QuestionProvider() {
-    loadQuestions();
+    loadData(); // 起動時に一括読み込み
   }
 
-  // 【機能：保存】現在のリストをスマホのローカルストレージに書き込む
+  // カテゴリーだけの保存処理
+  Future<void> saveCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_categoryKey, _categories);
+  }
+
+  // 質問データの保存処理
   Future<void> saveQuestions() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // 1. リストの中身をすべて Map型 に変換する
     List<Map<String, dynamic>> mappedList = _items
         .map((item) => item.toMap())
         .toList();
-
-    // 2. Map型のリストを、1本の長いJSON文字列（テキスト）に変換する
     String jsonString = jsonEncode(mappedList);
-
-    // 3. スマホの引き出しに保存する
     await prefs.setString(_storageKey, jsonString);
   }
 
-  // 【機能：読み込み】スマホからデータを復元する
-  Future<void> loadQuestions() async {
+  // ★質問とカテゴリーを両方とも読み込む関数に統合
+  Future<void> loadData() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // 1. カテゴリーの読み込み
+    List<String>? savedCats = prefs.getStringList(_categoryKey);
+    if (savedCats != null) {
+      _categories = savedCats;
+    }
+
+    // 2. 質問データの読み込み
     String? jsonString = prefs.getString(_storageKey);
 
-    // もしスマホに過去の保存データが何もなければ、最初の2件（初期データ）をプレゼントする
     if (jsonString == null) {
+      // 初期データ
       _items = [
         QuestionItem(
           id: '1',
@@ -139,19 +149,17 @@ class QuestionProvider extends ChangeNotifier {
           date: "2026/05/18",
         ),
       ];
-      await saveQuestions(); // 初期データを保存しておく
+      await saveQuestions();
+      await saveCategories();
       notifyListeners();
       return;
     }
 
-    // 保存されたテキストがある場合は、解凍して元のQuestionItemのリストに戻す
     List<dynamic> decodedList = jsonDecode(jsonString);
     _items = decodedList.map((map) => QuestionItem.fromMap(map)).toList();
-
-    notifyListeners(); // 画面にデータが読み込めたと通知して再描画
+    notifyListeners();
   }
 
-  // 【機能：追加】
   void addQuestion(String category, String question, String answer) async {
     final newItem = QuestionItem(
       id: DateTime.now().toString(),
@@ -162,12 +170,10 @@ class QuestionProvider extends ChangeNotifier {
           "${DateTime.now().year}/${DateTime.now().month}/${DateTime.now().day}",
     );
     _items.add(newItem);
-
     notifyListeners();
-    await saveQuestions(); // データが変わったのでスマホに即座に保存
+    await saveQuestions();
   }
 
-  // 【機能：編集】
   void editQuestion(
     String id,
     String newCategory,
@@ -181,17 +187,14 @@ class QuestionProvider extends ChangeNotifier {
       _items[index].answer = newAnswer;
       _items[index].date =
           "${DateTime.now().year}/${DateTime.now().month}/${DateTime.now().day}";
-
       notifyListeners();
-      await saveQuestions(); // データが変わったのでスマホに即座に保存
+      await saveQuestions();
     }
   }
 
-  // 【機能：削除】
   void deleteQuestion(String id) async {
     _items.removeWhere((item) => item.id == id);
-
     notifyListeners();
-    await saveQuestions(); // データが変わったのでスマホに即座に保存
+    await saveQuestions();
   }
 }
