@@ -9,10 +9,7 @@ class Questionpage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Providerからデータ一覧と、選択中のカテゴリー情報を受け取る
     final provider = Provider.of<QuestionProvider>(context);
-
-    // 全件(allItems)ではなく、新しく作った「絞り込み済みのリスト」を使うように変更
     final displayItems = provider.filteredItems;
 
     return Scaffold(
@@ -27,25 +24,15 @@ class Questionpage extends StatelessWidget {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.search, color: Color(0xFF1A375D)),
-          ),
-        ],
       ),
       body: Column(
         children: [
-          // カテゴリータブ部分
+          // リアルタイム検索バー
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               onChanged: (value) {
-                // 文字が入力されるたびに、リアルタイムでProviderにキーワードを伝える
-                Provider.of<QuestionProvider>(
-                  context,
-                  listen: false,
-                ).setSearchQuery(value);
+                provider.setSearchQuery(value);
               },
               decoration: InputDecoration(
                 hintText: "質問を検索...",
@@ -59,7 +46,8 @@ class Questionpage extends StatelessWidget {
               ),
             ),
           ),
-          // カテゴリータブ部分
+
+          // カテゴリータブ部分（長押しで削除可能に拡張）
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -68,19 +56,21 @@ class Questionpage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  // ① まずは固定で「すべて」のタグを置く
+                  // ① 「すべて」タグ（削除不可）
                   _buildCategoryTag(
                     context,
                     "すべて",
                     isSelected: provider.selectedCategory == "すべて",
+                    canDelete: false,
                   ),
 
-                  // ② 【ここを変更！】Providerにあるカテゴリーリストから自動で並べる
+                  // ② ユーザー自作カテゴリーリスト（「未分類」以外は長押し削除可能）
                   ...provider.categories.map((cat) {
                     return _buildCategoryTag(
                       context,
                       cat,
                       isSelected: provider.selectedCategory == cat,
+                      canDelete: cat != "未分類", // 未分類は削除不可にする
                     );
                   }).toList(),
                 ],
@@ -90,22 +80,19 @@ class Questionpage extends StatelessWidget {
 
           // 質問リスト部分
           Expanded(
-            child:
-                displayItems
-                    .isEmpty // 絞り込んだ結果、空っぽの場合の処理
-                ? const Center(child: Text("このカテゴリーの質問はまだありません。"))
+            child: displayItems.isEmpty
+                ? const Center(child: Text("該当する質問がありません。"))
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: displayItems.length, // 絞り込まれたデータの数だけループ
+                    itemCount: displayItems.length,
                     itemBuilder: (context, index) {
-                      final item = displayItems[index]; // 1つ分のデータを取り出す
+                      final item = displayItems[index];
                       return _buildQuestionCard(context, item);
                     },
                   ),
           ),
         ],
       ),
-      // 右下の「＋」ボタンを押したら、追加モードで入力画面を開く
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -119,24 +106,57 @@ class Questionpage extends StatelessWidget {
     );
   }
 
-  // カテゴリータグの部品（タップできるように GestureDetector で包み、context を追加）
+  // カテゴリータグの部品（長押し削除イベントに対応）
   Widget _buildCategoryTag(
     BuildContext context,
     String label, {
     bool isSelected = false,
+    bool canDelete = false,
   }) {
+    final provider = Provider.of<QuestionProvider>(context, listen: false);
+
     return Padding(
       padding: const EdgeInsets.only(right: 16),
       child: GestureDetector(
-        // タップされたら、Providerに「このカテゴリーが選ばれたよ！」と伝えます
         onTap: () {
-          Provider.of<QuestionProvider>(
-            context,
-            listen: false,
-          ).setCategory(label);
+          provider.setCategory(label);
+        },
+        // 💡 タブの長押しで削除ダイアログを表示
+        onLongPress: () {
+          if (!canDelete) return; // 削除不可のものは何もしない
+
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: Text("「$label」を削除しますか？"),
+                content: const Text("このカテゴリーを削除しても、中の質問は消えずに「未分類」へ移動します。"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("キャンセル"),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      provider.deleteCategory(label);
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("「$label」カテゴリーを削除しました。質問は未分類に移動しました。"),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "削除",
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
         },
         child: Container(
-          // タップの反応範囲を広げるための設定
           color: Colors.transparent,
           child: Column(
             children: [

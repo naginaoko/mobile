@@ -44,7 +44,6 @@ class QuestionProvider extends ChangeNotifier {
   List<QuestionItem> _items = [];
   List<QuestionItem> get items => _items;
 
-  // 💡 初期カテゴリーに最初から「未分類」を追加しておきます
   List<String> _categories = ["未分類", "自己PR", "志望動機", "逆質問"];
   List<String> get categories => _categories;
 
@@ -61,6 +60,33 @@ class QuestionProvider extends ChangeNotifier {
       _categories.add(trimmed);
       notifyListeners();
       await saveCategories();
+    }
+  }
+
+  // 💡 【新機能】カテゴリーの安全削除（パターンB：中の質問は「未分類」へお引越し）
+  Future<void> deleteCategory(String categoryName) async {
+    // 安全対策：「未分類」そのものは削除できないようにする
+    if (categoryName == "未分類") return;
+
+    if (_categories.contains(categoryName)) {
+      // 1. カテゴリーリストから削除
+      _categories.remove(categoryName);
+
+      // 2. ★該当するカテゴリーだった質問をすべて「未分類」に書き換える
+      for (var item in _items) {
+        if (item.category == categoryName) {
+          item.category = "未分類";
+        }
+      }
+
+      // 3. もし削除したカテゴリーを今画面で選択中だった場合、選択を「すべて」に戻す
+      if (_selectedCategory == categoryName) {
+        _selectedCategory = 'すべて';
+      }
+
+      notifyListeners();
+      await saveCategories(); // カテゴリー状態を保存
+      await saveQuestions(); // 質問のお引越し状態を保存
     }
   }
 
@@ -120,7 +146,6 @@ class QuestionProvider extends ChangeNotifier {
     List<String>? savedCats = prefs.getStringList(_categoryKey);
     if (savedCats != null) {
       _categories = savedCats;
-      // 念のため、保存されたデータの中に「未分類」がなければ先頭に追加する安全処理
       if (!_categories.contains("未分類")) {
         _categories.insert(0, "未分類");
       }
