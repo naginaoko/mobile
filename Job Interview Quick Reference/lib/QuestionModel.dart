@@ -44,10 +44,9 @@ class QuestionProvider extends ChangeNotifier {
   List<QuestionItem> _items = [];
   List<QuestionItem> get items => _items;
 
-  // ーーー ★【ここを拡張】自由に追加できるカテゴリーリスト ーーー
-  // 最初は基本の3つを用意（「すべて」はシステム側で扱うためここには含めません）
-  List<String> _categories = ["自己PR", "志望動機", "逆質問"];
-  List<String> get categories => _categories; // 画面から読み取るためのゲッター
+  // 💡 初期カテゴリーに最初から「未分類」を追加しておきます
+  List<String> _categories = ["未分類", "自己PR", "志望動機", "逆質問"];
+  List<String> get categories => _categories;
 
   String _selectedCategory = 'すべて';
   String _searchQuery = '';
@@ -55,13 +54,13 @@ class QuestionProvider extends ChangeNotifier {
   String get selectedCategory => _selectedCategory;
   String get searchQuery => _searchQuery;
 
-  // ★新しいカテゴリーをユーザーが追加する関数
+  // 新しいカテゴリーをユーザーが追加する関数
   Future<void> addCategory(String newCategory) async {
     final trimmed = newCategory.trim();
     if (trimmed.isNotEmpty && !_categories.contains(trimmed)) {
       _categories.add(trimmed);
       notifyListeners();
-      await saveCategories(); // カテゴリーリストもスマホに保存する
+      await saveCategories();
     }
   }
 
@@ -94,21 +93,18 @@ class QuestionProvider extends ChangeNotifier {
     return list;
   }
 
-  // ストレージ用のキー
   static const String _storageKey = 'saved_questions';
-  static const String _categoryKey = 'saved_categories'; // ★カテゴリー保存用のキー
+  static const String _categoryKey = 'saved_categories';
 
   QuestionProvider() {
-    loadData(); // 起動時に一括読み込み
+    loadData();
   }
 
-  // カテゴリーだけの保存処理
   Future<void> saveCategories() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_categoryKey, _categories);
   }
 
-  // 質問データの保存処理
   Future<void> saveQuestions() async {
     final prefs = await SharedPreferences.getInstance();
     List<Map<String, dynamic>> mappedList = _items
@@ -118,21 +114,21 @@ class QuestionProvider extends ChangeNotifier {
     await prefs.setString(_storageKey, jsonString);
   }
 
-  // ★質問とカテゴリーを両方とも読み込む関数に統合
   Future<void> loadData() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. カテゴリーの読み込み
     List<String>? savedCats = prefs.getStringList(_categoryKey);
     if (savedCats != null) {
       _categories = savedCats;
+      // 念のため、保存されたデータの中に「未分類」がなければ先頭に追加する安全処理
+      if (!_categories.contains("未分類")) {
+        _categories.insert(0, "未分類");
+      }
     }
 
-    // 2. 質問データの読み込み
     String? jsonString = prefs.getString(_storageKey);
 
     if (jsonString == null) {
-      // 初期データ
       _items = [
         QuestionItem(
           id: '1',

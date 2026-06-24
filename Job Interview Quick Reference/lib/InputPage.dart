@@ -12,7 +12,6 @@ class InputPage extends StatefulWidget {
 }
 
 class _InputPageState extends State<InputPage> {
-  // 文字入力を監視・制御するためのコントローラー
   final _questionController = TextEditingController();
   final _answerController = TextEditingController();
   final _newCatController = TextEditingController(); // 新規カテゴリー入力用
@@ -23,14 +22,13 @@ class _InputPageState extends State<InputPage> {
   void initState() {
     super.initState();
 
-    // 初期値の設定ロジック
     if (widget.editingItem != null) {
       _questionController.text = widget.editingItem!.question;
       _answerController.text = widget.editingItem!.answer;
       _selectedCategory = widget.editingItem!.category;
     } else {
-      // 新規作成時は、後ほどbuild内でProviderの最初の値を取得して初期化します
-      _selectedCategory = "";
+      // 💡 新規追加時の初期値を「未分類」にします
+      _selectedCategory = "未分類";
     }
   }
 
@@ -47,7 +45,7 @@ class _InputPageState extends State<InputPage> {
     final provider = Provider.of<QuestionProvider>(context);
     final isEditMode = widget.editingItem != null; // 編集モードかどうか
 
-    // 変数が空、または削除などでリストに含まれなくなっていた場合の安全対策
+    // 安全対策：もし選択中のカテゴリーがリストになければ、先頭（未分類）にする
     if (_selectedCategory.isEmpty ||
         !provider.categories.contains(_selectedCategory)) {
       if (provider.categories.isNotEmpty) {
@@ -157,7 +155,7 @@ class _InputPageState extends State<InputPage> {
             const Text("自分の回答", style: TextStyle(fontWeight: FontWeight.bold)),
             TextField(
               controller: _answerController,
-              maxLines: 5, // 複数行入力できるようにする
+              maxLines: 5,
               decoration: const InputDecoration(
                 hintText: "回答を入力してください",
                 border: OutlineInputBorder(),
@@ -173,7 +171,6 @@ class _InputPageState extends State<InputPage> {
               ),
               onPressed: () {
                 if (isEditMode) {
-                  // 編集保存
                   provider.editQuestion(
                     widget.editingItem!.id,
                     _selectedCategory,
@@ -181,14 +178,13 @@ class _InputPageState extends State<InputPage> {
                     _answerController.text,
                   );
                 } else {
-                  // 新規追加
                   provider.addQuestion(
                     _selectedCategory,
                     _questionController.text,
                     _answerController.text,
                   );
                 }
-                Navigator.pop(context); // 入力画面を閉じる
+                Navigator.pop(context);
               },
               child: const Text(
                 "保存する",
