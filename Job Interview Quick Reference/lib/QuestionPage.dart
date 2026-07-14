@@ -262,7 +262,7 @@ class Questionpage extends StatelessWidget {
   }
 }
 
-// 💡 読み上げ機能 ＋ ストップウォッチ経過計測 ＋ アニメーションの模擬練習モード
+// 💡 順番選択 ✕ 一括全選択 ✕ クイック演習 ✕ 計測タイマー ✕ 回答表示 模擬練習
 class _PracticeBottomSheet extends StatefulWidget {
   final List<QuestionItem> items;
   const _PracticeBottomSheet({required this.items});
@@ -273,8 +273,15 @@ class _PracticeBottomSheet extends StatefulWidget {
 
 class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
   final FlutterTts _flutterTts = FlutterTts();
-  late QuestionItem _currentQuestion;
-  int _secondsElapsed = 0; // 💡 カウントアップ（経過時間秒数）に変更
+
+  // 練習ステート
+  bool _hasStarted = false; // 練習中フラグ
+  List<QuestionItem> _selectedQueue = []; // タップした順番に格納されるキュー
+  bool _isRandomMode = false; // ランダムシャッフルモードON/OFF
+  bool _showAnswer = false; // 💡 回答の表示・非表示フラグ
+
+  int _currentIndex = 0;
+  int _secondsElapsed = 0;
   Timer? _timer;
   bool _isSpeaking = false;
   bool _isTimerRunning = false;
@@ -283,7 +290,6 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _pickRandomQuestion();
     _setupTts();
   }
 
@@ -294,27 +300,52 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
       if (mounted) {
         setState(() {
           _isSpeaking = false;
-          _startTimer(); // 💡 読み上げが終わったら、ストップウォッチ計測スタート！
+          _startTimer();
         });
       }
     });
   }
 
-  void _pickRandomQuestion() {
-    _stopEverything();
+  // 質問のタップ選択時の挙動（順番管理）
+  void _toggleSelection(QuestionItem item) {
     setState(() {
-      _secondsElapsed = 0; // 0秒に初期化
-      _currentQuestion = widget.items[Random().nextInt(widget.items.length)];
+      if (_selectedQueue.contains(item)) {
+        _selectedQueue.remove(item);
+      } else {
+        _selectedQueue.add(item);
+      }
     });
   }
 
-  void _startPractice() async {
-    _stopEverything();
+  // 演習開始処理
+  void _startPracticeSession() {
+    if (_selectedQueue.isEmpty) {
+      // 💡 何も選択されていない場合は「クイック演習（ランダム1問）」として動作
+      final randomQuestion =
+          widget.items[Random().nextInt(widget.items.length)];
+      _selectedQueue = [randomQuestion];
+    } else if (_isRandomMode) {
+      // 💡 ランダム出題モードがONなら、選んだキューをシャッフルする
+      _selectedQueue.shuffle();
+    }
+
+    setState(() {
+      _hasStarted = true;
+      _currentIndex = 0;
+      _secondsElapsed = 0;
+      _showAnswer = false; // 初期状態は非表示
+    });
+    _playCurrentQuestion();
+  }
+
+  void _playCurrentQuestion() async {
+    _stopTimerOnly();
     setState(() {
       _isSpeaking = true;
-      _secondsElapsed = 0; // 0秒からスタート
+      _secondsElapsed = 0;
+      _showAnswer = false; // 💡 新しい質問に切り替わるときは回答表示をリセット
     });
-    await _flutterTts.speak(_currentQuestion.question);
+    await _flutterTts.speak(_selectedQueue[_currentIndex].question);
   }
 
   void _startTimer() {
@@ -327,13 +358,12 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
         // 💡 約1秒ごと（120ms * 8 = 960ms ≒ 1秒）
         if (mounted) {
           setState(() {
-            _secondsElapsed++; // 秒数を1つずつ増やす
+            _secondsElapsed++;
           });
         }
       }
       if (mounted) {
         setState(() {
-          // 波形アニメーション用の高さをランダムバウンド
           _waveHeights = List.generate(
             7,
             (index) => 10.0 + Random().nextDouble() * 50.0,
@@ -343,7 +373,7 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
     });
   }
 
-  void _stopEverything() {
+  void _stopTimerOnly() {
     _timer?.cancel();
     _flutterTts.stop();
     if (mounted) {
@@ -355,7 +385,28 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
     }
   }
 
-  // 秒数を「分:秒」のフォーマット(MM:SS)に整える補助関数
+  void _nextQuestion() {
+    if (_currentIndex < _selectedQueue.length - 1) {
+      setState(() {
+        _currentIndex++;
+      });
+      _playCurrentQuestion();
+    } else {
+      // すべての質問をやりきった場合
+      _stopTimerOnly();
+      setState(() {
+        _hasStarted = false;
+        _selectedQueue.clear(); // 選択クリア
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("🎉 選択したすべての模擬練習が完了しました！お疲れ様でした！"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
   String _formatTime(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
@@ -364,129 +415,358 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
 
   @override
   void dispose() {
-    _stopEverything();
+    _timer?.cancel();
+    _flutterTts.stop();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // 画面サイズに応じて高さを動的調整（キーボード考慮）
+    final double sheetHeight = MediaQuery.of(context).size.height * 0.75;
+
     return Container(
+      height: sheetHeight,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.all(24),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 40,
             height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
+            margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
               color: Colors.grey[300],
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const Text(
-            "模擬面接練習モード",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
+
+          // 💡 ステートによって中身を切り替え
+          if (!_hasStarted) ...[
+            // ------------------- 【選択画面】 -------------------
+            const Text(
+              "練習する質問を選んでください",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: Color(0xFF1A375D),
+              ),
             ),
-            child: Text(
-              _currentQuestion.question,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            const SizedBox(height: 8),
+            const Text(
+              "タップした順番に出題されます（未選択ならランダム1問）",
+              style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            _isSpeaking
-                ? "面接官が質問中..."
-                : (_isTimerRunning ? "回答にかかった時間を計測中..." : "準備ができたらスタート"),
-            style: TextStyle(
-              color: _isSpeaking ? Colors.orange : Colors.blue,
-              fontWeight: FontWeight.bold,
+            const SizedBox(height: 12),
+
+            // 💡 「すべて選択」ボタン ✕ 「ランダムトグル」
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // すべて選択/クリアボタン
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      if (_selectedQueue.length == widget.items.length) {
+                        _selectedQueue.clear(); // すべてクリア
+                      } else {
+                        // 順番通りにすべて格納
+                        _selectedQueue = List.from(widget.items);
+                      }
+                    });
+                  },
+                  icon: Icon(
+                    _selectedQueue.length == widget.items.length
+                        ? Icons.deselect
+                        : Icons.select_all,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _selectedQueue.length == widget.items.length
+                        ? "選択解除"
+                        : "すべて選択",
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                // ランダム切り替え
+                Row(
+                  children: [
+                    const Text("ランダム出題", style: TextStyle(fontSize: 13)),
+                    Switch(
+                      value: _isRandomMode,
+                      onChanged: (val) => setState(() => _isRandomMode = val),
+                      activeColor: Colors.blue,
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          // 💡 「00:00」からのストップウォッチ表示
-          Text(
-            _formatTime(_secondsElapsed),
-            style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-              fontFamily: "monospace",
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 60,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: _waveHeights
-                  .map(
-                    (h) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 100),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: 8,
-                      height: h,
-                      decoration: BoxDecoration(
-                        color: _isTimerRunning ? Colors.blue : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(4),
+            const Divider(),
+
+            // 質問の複数選択リスト
+            Expanded(
+              child: ListView.builder(
+                itemCount: widget.items.length,
+                itemBuilder: (context, index) {
+                  final item = widget.items[index];
+                  final isSelected = _selectedQueue.contains(item);
+                  final selectedIndex = _selectedQueue.indexOf(item);
+
+                  return Card(
+                    elevation: 0,
+                    color: isSelected
+                        ? Colors.blue.withOpacity(0.05)
+                        : Colors.grey[50],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: isSelected ? Colors.blue : Colors.transparent,
+                        width: 1.5,
                       ),
                     ),
-                  )
-                  .toList(),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      onTap: () => _toggleSelection(item),
+                      leading: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: isSelected
+                            ? Colors.blue
+                            : Colors.grey[300],
+                        child: Text(
+                          isSelected ? "${selectedIndex + 1}" : "",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        item.question,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        item.category,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton.icon(
-                onPressed: (_isSpeaking || _isTimerRunning)
-                    ? _stopEverything
-                    : _startPractice,
+
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _startPracticeSession,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: (_isSpeaking || _isTimerRunning)
-                      ? Colors.red
-                      : const Color(0xFF1A375D),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+                  backgroundColor: const Color(0xFF1A375D),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                icon: Icon(
-                  (_isSpeaking || _isTimerRunning)
-                      ? Icons.stop
-                      : Icons.play_arrow,
-                  color: Colors.white,
-                ),
-                label: Text(
-                  (_isSpeaking || _isTimerRunning) ? "終了" : "練習開始",
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: _pickRandomQuestion,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+                child: Text(
+                  _selectedQueue.isEmpty
+                      ? "クイック練習を開始"
+                      : "選択した練習を開始 (${_selectedQueue.length}件)",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                icon: const Icon(Icons.skip_next),
-                label: const Text("次の質問"),
               ),
-            ],
-          ),
+            ),
+          ] else ...[
+            // ------------------- 【練習実行画面】 -------------------
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    _stopTimerOnly();
+                    setState(() => _hasStarted = false);
+                  },
+                ),
+                Text(
+                  "練習中: ${_currentIndex + 1} / ${_selectedQueue.length}問目",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Color(0xFF1A375D),
+                  ),
+                ),
+                const SizedBox(width: 48), // バランス用
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // 質問テキスト ✕ 💡 回答切り替え機能
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    _selectedQueue[_currentIndex].question,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 💡 目のマークを押すと、登録された回答がチラッと見れる！
+                  if (_showAnswer)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        _selectedQueue[_currentIndex].answer,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF1A375D),
+                        ),
+                      ),
+                    ),
+
+                  TextButton.icon(
+                    onPressed: () => setState(() => _showAnswer = !_showAnswer),
+                    icon: Icon(
+                      _showAnswer ? Icons.visibility_off : Icons.visibility,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _showAnswer ? "回答を隠す" : "回答を確認",
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Text(
+              _isSpeaking
+                  ? "面接官が質問中..."
+                  : (_isTimerRunning ? "回答にかかった時間を計測中..." : "準備ができたらスタート"),
+              style: TextStyle(
+                color: _isSpeaking ? Colors.orange : Colors.blue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            // 計測ストップウォッチ
+            Text(
+              _formatTime(_secondsElapsed),
+              style: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+                fontFamily: "monospace",
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // 波形
+            SizedBox(
+              height: 50,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: _waveHeights
+                    .map(
+                      (h) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 100),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 8,
+                        height: h,
+                        decoration: BoxDecoration(
+                          color: _isTimerRunning
+                              ? Colors.blue
+                              : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            const Spacer(),
+
+            // コントロールボタン
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: (_isSpeaking || _isTimerRunning)
+                      ? _stopTimerOnly
+                      : _playCurrentQuestion,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: (_isSpeaking || _isTimerRunning)
+                        ? Colors.red
+                        : const Color(0xFF1A375D),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  icon: Icon(
+                    (_isSpeaking || _isTimerRunning)
+                        ? Icons.stop
+                        : Icons.play_arrow,
+                    color: Colors.white,
+                  ),
+                  label: Text(
+                    (_isSpeaking || _isTimerRunning) ? "停止" : "もう一度聞く",
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _nextQuestion,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  icon: Icon(
+                    _currentIndex == _selectedQueue.length - 1
+                        ? Icons.check
+                        : Icons.skip_next,
+                  ),
+                  label: Text(
+                    _currentIndex == _selectedQueue.length - 1
+                        ? "練習完了"
+                        : "次の質問へ",
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
         ],
       ),
     );
