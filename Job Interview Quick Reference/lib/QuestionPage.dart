@@ -262,6 +262,7 @@ class Questionpage extends StatelessWidget {
   }
 }
 
+// 💡 読み上げ機能 ＋ ストップウォッチ経過計測 ＋ アニメーションの模擬練習モード
 class _PracticeBottomSheet extends StatefulWidget {
   final List<QuestionItem> items;
   const _PracticeBottomSheet({required this.items});
@@ -273,7 +274,7 @@ class _PracticeBottomSheet extends StatefulWidget {
 class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
   final FlutterTts _flutterTts = FlutterTts();
   late QuestionItem _currentQuestion;
-  int _secondsLeft = 60;
+  int _secondsElapsed = 0; // 💡 カウントアップ（経過時間秒数）に変更
   Timer? _timer;
   bool _isSpeaking = false;
   bool _isTimerRunning = false;
@@ -293,7 +294,7 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
       if (mounted) {
         setState(() {
           _isSpeaking = false;
-          _startTimer();
+          _startTimer(); // 💡 読み上げが終わったら、ストップウォッチ計測スタート！
         });
       }
     });
@@ -302,7 +303,7 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
   void _pickRandomQuestion() {
     _stopEverything();
     setState(() {
-      _secondsLeft = 60;
+      _secondsElapsed = 0; // 0秒に初期化
       _currentQuestion = widget.items[Random().nextInt(widget.items.length)];
     });
   }
@@ -311,23 +312,28 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
     _stopEverything();
     setState(() {
       _isSpeaking = true;
-      _secondsLeft = 60;
+      _secondsElapsed = 0; // 0秒からスタート
     });
     await _flutterTts.speak(_currentQuestion.question);
   }
 
   void _startTimer() {
-    setState(() => _isTimerRunning = true);
+    setState(() {
+      _isTimerRunning = true;
+      _secondsElapsed = 0;
+    });
     _timer = Timer.periodic(const Duration(milliseconds: 120), (timer) {
       if (timer.tick % 8 == 0) {
-        if (_secondsLeft > 0) {
-          if (mounted) setState(() => _secondsLeft--);
-        } else {
-          _stopEverything();
+        // 💡 約1秒ごと（120ms * 8 = 960ms ≒ 1秒）
+        if (mounted) {
+          setState(() {
+            _secondsElapsed++; // 秒数を1つずつ増やす
+          });
         }
       }
       if (mounted) {
         setState(() {
+          // 波形アニメーション用の高さをランダムバウンド
           _waveHeights = List.generate(
             7,
             (index) => 10.0 + Random().nextDouble() * 50.0,
@@ -347,6 +353,13 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
         _waveHeights = List.generate(7, (index) => 15.0);
       });
     }
+  }
+
+  // 秒数を「分:秒」のフォーマット(MM:SS)に整える補助関数
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return "${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -397,14 +410,15 @@ class _PracticeBottomSheetState extends State<_PracticeBottomSheet> {
           Text(
             _isSpeaking
                 ? "面接官が質問中..."
-                : (_isTimerRunning ? "回答してください" : "準備ができたらスタート"),
+                : (_isTimerRunning ? "回答にかかった時間を計測中..." : "準備ができたらスタート"),
             style: TextStyle(
               color: _isSpeaking ? Colors.orange : Colors.blue,
               fontWeight: FontWeight.bold,
             ),
           ),
+          // 💡 「00:00」からのストップウォッチ表示
           Text(
-            "00:${_secondsLeft.toString().padLeft(2, '0')}",
+            _formatTime(_secondsElapsed),
             style: const TextStyle(
               fontSize: 48,
               fontWeight: FontWeight.bold,
